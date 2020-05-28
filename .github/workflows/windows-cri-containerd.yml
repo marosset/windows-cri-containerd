@@ -1,0 +1,72 @@
+name: Nightly
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    - cron: '0 0 * * *' # Every day at midnight
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.13.11
+
+    - name: Set env
+      shell: bash
+      run: |
+        echo "::set-env name=GOPATH::${{ github.workspace }}"
+        echo "::add-path::${{ github.workspace }}/bin"
+        echo "::set-env name=GOOS::windows"
+        echo "::set-env name=GOARCH::amd64"
+
+    - name: Build hcsshim
+      run: |
+        mkdir ./output
+        go get github.com/Microsoft/hcsshim
+        go build -o ./output/containerd-shim-runhcs-v1.exe github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1
+        cd $GOPATH/src/github.com/Microsoft/hcsshim
+        git rev-parse HEAD > $GOPATH/output/hcsshim-revision.txt
+
+    - name: Build cri-containerd
+      run: |
+        mkdir -p $GOPATH/src/github.com/containerd
+        cd src/github.com/containerd
+        git clone https://github.com/containerd/cri.git
+        cd cri
+        git rev-parse HEAD > $GOPATH/output/cri-revision.txt
+        make containerd
+        cp _output/containerd.exe $GOPATH/output
+
+    - name: Build ctr
+      run: |
+        mkdir -p $GOPATH/src/github.com/containerd
+        cd src/github.com/containerd
+        git clone https://github.com/containerd/containerd.git
+        cd containerd
+        git rev-parse HEAD > $GOPATH/output/containerd-revision.txt
+        make
+        cp bin/ctr.exe $GOPATH/output
+
+    - name: make windows-cri-containerd zip
+      run: |
+        cd ./output
+        zip windows-cri-containerd.zip *.exe *.txt
+        rm -f *.exe
+        rm -f *.txt
+
+    - uses: eine/tip@master
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: nightly
+        files: |
+          ./output/*
