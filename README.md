@@ -9,6 +9,6 @@ This project uses GitHub actions to build nightly packages of [contianerd](https
 
 https://github.com/marosset/windows-cri-containerd/releases/download/nightly/windows-cri-containerd.zip is updated nightly and containers the following binaries:
 
-- containterd.exe
+- containerd.exe
 - containerd-shim-runhcs-v1.exe
 - ctr.exe
