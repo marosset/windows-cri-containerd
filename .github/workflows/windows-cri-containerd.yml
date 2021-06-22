@@ -12,61 +12,48 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     steps:
 
     - name: Install Go
       uses: actions/setup-go@v2
       with:
-        go-version: 1.13.11
-
-    - name: Set env
-      shell: bash
-      run: |
-        echo "::set-env name=GOPATH::${{ github.workspace }}"
-        echo "::add-path::${{ github.workspace }}/bin"
-        echo "::set-env name=GOOS::windows"
-        echo "::set-env name=GOARCH::amd64"
+        go-version: 1.16.4
+    
+    - name: Create drop folder
+      run: mkdir -p $GITHUB_WORKSPACE/output/bin
 
     - name: Build hcsshim
+      env:
+        GOOS: windows
+        GOARCH: amd64
       run: |
-        mkdir ./output
-        go get github.com/Microsoft/hcsshim
-        go build -o ./output/containerd-shim-runhcs-v1.exe github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1
-        cd $GOPATH/src/github.com/Microsoft/hcsshim
-        git rev-parse HEAD > $GOPATH/output/hcsshim-revision.txt
+        git clone https://github.com/Microsoft/hcsshim
+        cd hcsshim
+        go build -o $GITHUB_WORKSPACE/output/bin/containerd-shim-runhcs-v1.exe ./cmd/containerd-shim-runhcs-v1
+        git rev-parse HEAD > $GITHUB_WORKSPACE/output/bin/hcsshim-revision.txt
 
-    - name: Build cri-containerd
+    - name: Build containerd
+      env:
+        GOOS: windows
+        GOARCH: amd64
       run: |
-        mkdir -p $GOPATH/src/github.com/containerd
-        cd src/github.com/containerd
-        git clone https://github.com/containerd/cri.git
-        cd cri
-        git rev-parse HEAD > $GOPATH/output/cri-revision.txt
-        make containerd
-        cp _output/containerd.exe $GOPATH/output
-
-    - name: Build ctr
-      run: |
-        mkdir -p $GOPATH/src/github.com/containerd
-        cd src/github.com/containerd
         git clone https://github.com/containerd/containerd.git
         cd containerd
-        git rev-parse HEAD > $GOPATH/output/containerd-revision.txt
-        make
-        cp bin/ctr.exe $GOPATH/output
+        make binaries
+        cp ./bin/containerd.exe $GITHUB_WORKSPACE/output/bin
+        cp ./bin/ctr.exe $GITHUB_WORKSPACE/output/bin
+        git rev-parse HEAD > $GITHUB_WORKSPACE/output/bin/containerd-revision.txt
 
     - name: make windows-cri-containerd zip
       run: |
-        cd ./output
-        zip windows-cri-containerd.zip *.exe *.txt
-        rm -f *.exe
-        rm -f *.txt
+        cd $GITHUB_WORKSPACE/output
+        tar cvf windows-cri-containerd.tar.gz bin
 
     - uses: eine/tip@master
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: nightly
         files: |
-          ./output/*
+          ./output/windows-cri-containerd.tar.gz
