@@ -52,6 +52,22 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/output
         tar cvf windows-containerd-hostprocess.tar.gz bin
+    
+    - name: Build k8s
+      env:
+        GOOS: windows
+        GOARCH: amd64
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install rsync net-tools
+        mkdir -p ./src/k8s.io
+        cd ./src/k8s.io
+        git clone https://github.com/perithompson/kubernetes.git
+        cd kubernetes
+        git checkout windows-etchostcreate-skip
+        ./build/run.sh make kubelet KUBE_BUILD_PLATFORMS=windows/amd64
+        mkdir -p $GITHUB_WORKSPACE/output/k8s
+        cp ./_output/dockerized/bin/windows/amd64/kubelet.exe $GITHUB_WORKSPACE/output/k8s/kubelet.exe
 
     - uses: eine/tip@master
       with:
@@ -59,3 +75,4 @@ jobs:
         tag: hostprocess
         files: |
           ./output/windows-containerd-hostprocess.tar.gz
+          ./output/k8s/kubelet.exe
