@@ -65,6 +65,11 @@ jobs:
         git clone https://github.com/perithompson/kubernetes.git
         cd kubernetes
         git checkout windows-etchostcreate-skip
+        git remote add upstream https://github.com/kubernetes/kubernetes.git
+        git fetch upstream
+        git config --global user.email "you@example.com"
+        git config --global user.name "Your Name"
+        git rebase upstream/master
         ./build/run.sh make kubelet KUBE_BUILD_PLATFORMS=windows/amd64
         mkdir -p $GITHUB_WORKSPACE/output/k8s
         cp ./_output/dockerized/bin/windows/amd64/kubelet.exe $GITHUB_WORKSPACE/output/k8s/kubelet.exe
