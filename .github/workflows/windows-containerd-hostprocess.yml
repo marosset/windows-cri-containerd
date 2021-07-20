@@ -7,6 +7,7 @@ on:
     branches: [ master ]
   schedule:
     - cron: '0 0 * * *' # Every day at midnight
+  workflow_dispatch:
 
 jobs:
 
@@ -31,7 +32,6 @@ jobs:
       run: |
         git clone https://github.com/dcantah/hcsshim
         cd hcsshim
-        git checkout jobcontainer-volume
         go build -o $GITHUB_WORKSPACE/output/bin/containerd-shim-runhcs-v1.exe ./cmd/containerd-shim-runhcs-v1
         git rev-parse HEAD > $GITHUB_WORKSPACE/output/bin/hcsshim-revision.txt
 
@@ -52,32 +52,11 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/output
         tar cvf windows-containerd-hostprocess.tar.gz bin
-    
-    - name: Build k8s
-      env:
-        GOOS: windows
-        GOARCH: amd64
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install rsync net-tools
-        mkdir -p ./src/k8s.io
-        cd ./src/k8s.io
-        git clone https://github.com/perithompson/kubernetes.git
-        cd kubernetes
-        git checkout windows-etchostcreate-skip
-        git remote add upstream https://github.com/kubernetes/kubernetes.git
-        git fetch upstream
-        git config --global user.email "you@example.com"
-        git config --global user.name "Your Name"
-        git rebase upstream/master
-        ./build/run.sh make kubelet KUBE_BUILD_PLATFORMS=windows/amd64
-        mkdir -p $GITHUB_WORKSPACE/output/k8s
-        cp ./_output/dockerized/bin/windows/amd64/kubelet.exe $GITHUB_WORKSPACE/output/k8s/kubelet.exe
 
     - uses: eine/tip@master
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: hostprocess
+        rm: true
         files: |
           ./output/windows-containerd-hostprocess.tar.gz
-          ./output/k8s/kubelet.exe
